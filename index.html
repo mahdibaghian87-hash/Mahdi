@@ -1,0 +1,223 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Market Coach</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📈</text></svg>">
+<style>
+:root{
+  --bg:#f6f7f9; --tx:#14171c; --hint:#667080; --card:#ffffff;
+  --btn:#9a6f1f; --btnt:#ffffff; --up:#1a9a82; --down:#d24c3f; --side:#667080;
+  --line:rgba(100,110,125,.25);
+}
+@media (prefers-color-scheme:dark){:root{
+  --bg:#14171c; --tx:#eceff3; --hint:#8a93a0; --card:#1d2229;
+  --btn:#c8963e; --btnt:#14171c; --up:#2fb59a; --down:#e5675a; --side:#9aa3b0;
+}}
+*{box-sizing:border-box;margin:0}
+html,body{height:100%}
+html{background:var(--bg)}
+body{max-width:640px;margin:0 auto;background:var(--bg);color:var(--tx);font:16px/1.6 system-ui,-apple-system,"Segoe UI",Tahoma,sans-serif;display:flex;flex-direction:column}
+header{display:flex;justify-content:space-between;align-items:center;padding:14px 16px 6px;padding-top:calc(14px + env(safe-area-inset-top,0px))}
+h1{font-size:20px;font-weight:700}
+#lang{background:var(--card);color:var(--tx);border:1px solid var(--line);border-radius:10px;padding:6px 12px;font:inherit;font-size:14px}
+main{flex:1;overflow-y:auto;padding:8px 16px 16px}
+nav{display:flex;border-top:1px solid var(--line);background:var(--bg);padding-bottom:env(safe-area-inset-bottom,0px)}
+nav button{flex:1;background:none;border:0;color:var(--hint);padding:12px 4px;font:inherit;font-size:14px}
+nav button.on{color:var(--btn);font-weight:700;box-shadow:inset 0 2px 0 var(--btn)}
+.row{display:flex;justify-content:space-between;align-items:center;background:var(--card);border-radius:14px;padding:14px;margin-bottom:10px;cursor:pointer}
+.row b{font-size:16px}
+.num{direction:ltr;unicode-bidi:isolate;font-variant-numeric:tabular-nums}
+.r{text-align:end}
+.up{color:var(--up)}.down{color:var(--down)}.side{color:var(--side)}
+.chip{font-size:13px;margin-top:2px}
+.back{background:none;border:0;color:var(--btn);font:inherit;padding:6px 0 10px}
+.box{background:var(--card);border-radius:14px;padding:16px;margin-bottom:12px}
+.big{font-size:32px;font-weight:700}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.grid div{background:var(--card);border-radius:12px;padding:12px}
+.grid small{color:var(--hint);display:block;font-size:13px}
+.sum{border-inline-start:3px solid var(--btn)}
+.warn{color:var(--hint);font-size:13px;margin-top:14px}
+details{background:var(--card);border-radius:14px;margin-bottom:10px;padding:14px}
+summary{font-weight:700;cursor:pointer}
+details p{margin-top:8px;color:var(--tx)}
+.msg{padding:10px 14px;border-radius:14px;margin-bottom:8px;max-width:88%;white-space:pre-wrap}
+.me{background:var(--btn);color:var(--btnt);margin-inline-start:auto}
+.ai{background:var(--card)}
+.ask{display:flex;gap:8px;position:sticky;bottom:0;background:var(--bg);padding-top:8px}
+.ask input{flex:1;background:var(--card);color:var(--tx);border:1px solid var(--line);border-radius:12px;padding:12px;font:inherit}
+.ask button{background:var(--btn);color:var(--btnt);border:0;border-radius:12px;padding:0 18px;font:inherit;font-weight:700}
+.row,.box,.grid div,details{border:1px solid var(--line)}
+.muted{color:var(--hint);text-align:center;padding:24px 0}
+@media (prefers-reduced-motion:no-preference){.row:active{transform:scale(.99)}}
+</style>
+</head>
+<body>
+<header><h1 id="title"></h1><button id="lang"></button></header>
+<main id="view"></main>
+<nav id="nav"></nav>
+
+<script>
+const T = {
+  fa: {
+    title: 'مربی بازار', other: 'EN',
+    tabs: { markets: 'بازارها', learn: 'آموزش', ask: 'پرسش از هوش مصنوعی' },
+    trend: { up: 'صعودی', down: 'نزولی', side: 'خنثی' },
+    back: 'بازگشت', loading: 'در حال دریافت…', err: 'دریافت اطلاعات ممکن نشد. چند لحظه بعد دوباره امتحان کن.',
+    price: 'قیمت', rsi: 'RSI', sup: 'حمایت', res: 'مقاومت', sma20: 'میانگین ۲۰', sma50: 'میانگین ۵۰',
+    rsiZ: { hot: 'اشباع خرید', cold: 'اشباع فروش', mid: 'معمولی' },
+    note: 'نمودار ساعتی، به‌روزرسانی هر ۵ دقیقه. این محتوا آموزشی است و توصیه مالی نیست؛ ترید ریسک دارد و ممکن است کل سرمایه را از دست بدهی.',
+    ph: 'سوالت درباره تحلیل یا ریسک…', send: 'ارسال',
+    hi: 'هر سوالی درباره کندل، اندیکاتورها یا مدیریت ریسک داری بپرس.',
+    lessons: [
+      ['کندل چیست؟', 'هر کندل قیمت باز شدن، بسته شدن، بالاترین و پایین‌ترین قیمت یک بازه زمانی (مثلاً یک ساعت) را نشان می‌دهد. بدنه فاصله باز و بسته شدن است و سایه‌ها میزان نوسان را نشان می‌دهند.'],
+      ['روند', 'روند صعودی یعنی قله و کف‌های بالاتر، نزولی یعنی قله و کف‌های پایین‌تر، و خنثی یعنی حرکت در یک محدوده. در این اپ روند با میانگین متحرک ۲۰ و ۵۰ ساعته سنجیده می‌شود.'],
+      ['حمایت و مقاومت', 'حمایت سطحی است که قیمت چند بار از آن برگشته و بالا رفته؛ مقاومت سطحی است که قیمت از آن پایین آمده. شکسته شدن این سطوح می‌تواند نشانه تغییر رفتار بازار باشد.'],
+      ['RSI', 'عددی بین ۰ تا ۱۰۰ که قدرت حرکت اخیر را نشان می‌دهد. بالای ۷۰ رشد تند (اشباع خرید) و زیر ۳۰ افت تند (اشباع فروش) است. این‌ها هشدارند، نه سیگنال قطعی؛ در روند قوی RSI می‌تواند مدت‌ها بالا یا پایین بماند.'],
+      ['حد ضرر', 'سفارشی که اگر قیمت خلاف انتظارت رفت، معامله را خودکار می‌بندد. قبل از ورود تعیینش کن و از ترس جابه‌جایش نکن.'],
+      ['مدیریت سرمایه', 'در هر معامله فقط درصد کوچکی از سرمایه (مثلاً ۱ تا ۲ درصد) را در ریسک بگذار. اهرم بالا سود و ضرر را هم‌زمان بزرگ می‌کند و حساب را زود نابود می‌کند.'],
+    ],
+  },
+  en: {
+    title: 'Market Coach', other: 'فا',
+    tabs: { markets: 'Markets', learn: 'Learn', ask: 'Ask AI' },
+    trend: { up: 'Uptrend', down: 'Downtrend', side: 'Sideways' },
+    back: 'Back', loading: 'Loading…', err: 'Could not load data. Try again in a moment.',
+    price: 'Price', rsi: 'RSI', sup: 'Support', res: 'Resistance', sma20: 'SMA 20', sma50: 'SMA 50',
+    rsiZ: { hot: 'Overbought', cold: 'Oversold', mid: 'Neutral' },
+    note: 'Hourly chart, refreshed every 5 minutes. Educational content, not financial advice. Trading is risky and you can lose all your capital.',
+    ph: 'Ask about analysis or risk…', send: 'Send',
+    hi: 'Ask anything about candles, indicators or risk management.',
+    lessons: [
+      ['What is a candle?', 'A candle shows the open, close, high and low price of one time period (for example one hour). The body is the distance between open and close; the wicks show the range of movement.'],
+      ['Trend', 'An uptrend makes higher highs and higher lows, a downtrend makes lower highs and lower lows, and a sideways market moves within a range. Here the trend is judged with the 20 and 50 hour moving averages.'],
+      ['Support and resistance', 'Support is a level where price has bounced up several times; resistance is a level where it has turned down. A break through either can signal a change in behavior.'],
+      ['RSI', 'A number from 0 to 100 that measures recent momentum. Above 70 is a sharp rise (overbought), below 30 a sharp fall (oversold). These are warnings, not certain signals; in a strong trend RSI can stay extreme for a long time.'],
+      ['Stop loss', 'An order that closes your trade automatically if price moves against you. Set it before you enter, and do not move it out of fear.'],
+      ['Risk management', 'Risk only a small share of your capital per trade (for example 1 to 2 percent). High leverage magnifies gains and losses together and can wipe out an account quickly.'],
+    ],
+  },
+};
+
+let lang = 'fa', tab = 'markets', open = null, chat = [];
+try { lang = localStorage.getItem('lang') || ((navigator.language || '').startsWith('fa') ? 'fa' : 'en'); } catch {}
+const t = () => T[lang];
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const fmt = (n, d = 2) => Number(n).toLocaleString('en-US', { minimumFractionDigits: d, maximumFractionDigits: d });
+const dec = p => (p < 10 ? 4 : 2);
+
+async function api(path, opts = {}) {
+  const r = await fetch(path, { ...opts, headers: { 'content-type': 'application/json' } });
+  const j = await r.json();
+  if (!r.ok) throw new Error(j.error || 'Error');
+  return j;
+}
+
+function shell() {
+  document.documentElement.lang = lang;
+  document.documentElement.dir = lang === 'fa' ? 'rtl' : 'ltr';
+  $('title').textContent = t().title;
+  $('lang').textContent = t().other;
+  $('nav').innerHTML = Object.entries(t().tabs).map(([k, v]) => `<button data-t="${k}" class="${k === tab ? 'on' : ''}">${v}</button>`).join('');
+}
+
+async function render() {
+  shell();
+  if (tab === 'markets') return open ? detail(open) : markets();
+  if (tab === 'learn') return learn();
+  return ask();
+}
+
+async function markets() {
+  const v = $('view');
+  v.innerHTML = `<p class="muted">${t().loading}</p>`;
+  try {
+    const list = await api('/api/markets?lang=' + lang);
+    if (tab !== 'markets' || open) return;
+    v.innerHTML = list.map(m => m.error
+      ? `<div class="row"><b>${esc(m.name)}</b><span class="muted" style="padding:0">—</span></div>`
+      : `<div class="row" data-id="${m.id}">
+           <div><b>${esc(m.name)}</b><div class="chip ${m.trend}">${t().trend[m.trend]}</div></div>
+           <div class="r"><div class="num">${fmt(m.price, dec(m.price))}</div>
+           <div class="chip num ${m.change >= 0 ? 'up' : 'down'}">${m.change >= 0 ? '+' : ''}${fmt(m.change)}%</div></div>
+         </div>`).join('') + `<p class="warn">${t().note}</p>`;
+  } catch (e) { v.innerHTML = `<p class="muted">${t().err}</p>`; }
+}
+
+async function detail(id) {
+  const v = $('view');
+  v.innerHTML = `<button class="back" id="back">${t().back}</button><p class="muted">${t().loading}</p>`;
+  $('back').onclick = () => { open = null; render(); };
+  try {
+    const a = await api(`/api/analysis/${id}?lang=${lang}`);
+    if (open !== id || tab !== 'markets') return;
+    const d = dec(a.price);
+    const z = a.rsi >= 70 ? 'hot' : a.rsi <= 30 ? 'cold' : 'mid';
+    v.innerHTML = `<button class="back" id="back">${t().back}</button>
+      <div class="box"><div>${esc(a.name)}</div>
+        <div class="big num">${fmt(a.price, d)}</div>
+        <div class="${a.trend}"><b>${t().trend[a.trend]}</b>
+        <span class="num ${a.change >= 0 ? 'up' : 'down'}"> ${a.change >= 0 ? '+' : ''}${fmt(a.change)}%</span></div></div>
+      ${a.summary ? `<div class="box sum">${esc(a.summary)}</div>` : ''}
+      <div class="grid">
+        <div><small>${t().rsi}</small><b class="num">${fmt(a.rsi, 1)}</b> · ${t().rsiZ[z]}</div>
+        <div><small>${t().sup}</small><b class="num">${fmt(a.support, d)}</b></div>
+        <div><small>${t().res}</small><b class="num">${fmt(a.resistance, d)}</b></div>
+        <div><small>${t().sma20}</small><b class="num">${fmt(a.sma20, d)}</b></div>
+        <div><small>${t().sma50}</small><b class="num">${fmt(a.sma50, d)}</b></div>
+      </div>
+      <p class="warn">${t().note}</p>`;
+    $('back').onclick = () => { open = null; render(); };
+  } catch (e) {
+    v.innerHTML = `<button class="back" id="back">${t().back}</button><p class="muted">${esc(e.message || t().err)}</p>`;
+    $('back').onclick = () => { open = null; render(); };
+  }
+}
+
+function learn() {
+  $('view').innerHTML = t().lessons.map(([h, p]) => `<details><summary>${esc(h)}</summary><p>${esc(p)}</p></details>`).join('') +
+    `<p class="warn">${t().note}</p>`;
+}
+
+function ask() {
+  const v = $('view');
+  const msgs = chat.length ? chat : [{ r: 'ai', x: t().hi }];
+  v.innerHTML = msgs.map(m => `<div class="msg ${m.r === 'me' ? 'me' : 'ai'}">${esc(m.x)}</div>`).join('') +
+    `<div class="ask"><input id="q" maxlength="600" placeholder="${t().ph}"><button id="go">${t().send}</button></div>`;
+  const send = async () => {
+    const q = $('q').value.trim();
+    if (!q) return;
+    chat.push({ r: 'me', x: q }, { r: 'ai', x: t().loading });
+    ask();
+    try {
+      const { answer } = await api('/api/ask', { method: 'POST', body: JSON.stringify({ question: q, lang }) });
+      chat[chat.length - 1].x = answer;
+    } catch (e) { chat[chat.length - 1].x = e.message || t().err; }
+    if (tab === 'ask') { ask(); v.scrollTop = v.scrollHeight; }
+  };
+  $('go').onclick = send;
+  $('q').onkeydown = e => { if (e.key === 'Enter') send(); };
+  v.scrollTop = v.scrollHeight;
+}
+
+$('nav').onclick = e => {
+  const k = e.target.dataset.t;
+  if (k) { tab = k; open = null; render(); }
+};
+$('view').onclick = e => {
+  const row = e.target.closest('[data-id]');
+  if (row) { open = row.dataset.id; render(); }
+};
+$('lang').onclick = () => {
+  lang = lang === 'fa' ? 'en' : 'fa';
+  try { localStorage.setItem('lang', lang); } catch {}
+  render();
+};
+
+render();
+</script>
+</body>
+</html>
